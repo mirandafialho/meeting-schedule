@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use GuzzleHttp\Client;
+use App\Models\Client;
+use Illuminate\Http\JsonResponse;
 use GuzzleHttp\Exception\BadResponseException;
 use Illuminate\Http\Request;
 
@@ -11,7 +12,7 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $http = new Client;
+        $http = new \GuzzleHttp\Client;
 
         try {
             $response = $http->post(config('services.passport.endpoint'), [
@@ -36,22 +37,41 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * @param Request $request
+     * @return mixed
+     */
     public function register(Request $request)
     {
         $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|max:255|unique:users',
+            'phone'    => 'required|string|max:255',
             'password' => 'required|string|min:6'
         ]);
 
-        return User::create([
+        $user = User::create([
             'name'     => $request->name,
             'email'    => $request->email,
             'password' => $request->password
         ]);
+
+        Client::create([
+            'name'    => $request->name,
+            'email'   => $request->email,
+            'phone'   => $request->phone,
+            'user_id' => $user->id
+        ]);
+
+        return $user;
     }
 
-    public function logout()
+    /**
+     * Logout.
+     *
+     * @return JsonResponse
+     */
+    public function logout(): JsonResponse
     {
         auth()->user()->tokens->each(function($token, $key) {
             $token->delete();
