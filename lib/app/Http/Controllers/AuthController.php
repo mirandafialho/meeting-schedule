@@ -5,11 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Client;
 use Illuminate\Http\JsonResponse;
-use GuzzleHttp\Exception\BadResponseException;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
+use Psr\Http\Message\StreamInterface;
 
 class AuthController extends Controller
 {
+    /**
+     * @param Request $request
+     * @return JsonResponse|StreamInterface
+     * @throws ClientException|GuzzleException
+     */
     public function login(Request $request)
     {
         $http = new \GuzzleHttp\Client;
@@ -26,14 +33,26 @@ class AuthController extends Controller
             ]);
 
             return $response->getBody();
-        } catch (BadResponseException $e) {
+        } catch (ClientException $e) {
             if ($e->getCode() === 400) {
-                return response()->json('Invalid request. Please enter a username or a password.', $e->getCode());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid request. Please enter a username or a password.',
+                    'data'    => null
+                ], $e->getCode());
             } else if ($e->getCode() === 401) {
-                return response()->json('Your credentials are incorrect. Please try again.', $e->getCode());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your credentials are incorrect. Please try again.',
+                    'data'    => null
+                ], $e->getCode());
             }
 
-            return response()->json('Something went wrong on the server.', $e->getCode());
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong on the server.',
+                'data'    => null
+            ], $e->getCode());
         }
     }
 
@@ -44,10 +63,10 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users',
-            'phone'    => 'required|string|max:255',
-            'password' => 'required|string|min:6'
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'phone'    => ['required', 'string', 'regex:/^\([1-9]{2}\) (?:[2-8]|9[1-9])[0-9]{3}\-[0-9]{4}$/'],
+            'password' => ['required', 'string', 'min:6']
         ]);
 
         $user = User::create([
@@ -58,12 +77,15 @@ class AuthController extends Controller
 
         Client::create([
             'name'    => $request->name,
-            'email'   => $request->email,
             'phone'   => $request->phone,
             'user_id' => $user->id
         ]);
 
-        return $user;
+        return response()->json([
+            'success' => true,
+            'message' => 'User registered.',
+            'data'    => $user
+        ]);
     }
 
     /**
@@ -73,12 +95,24 @@ class AuthController extends Controller
      */
     public function logout(): JsonResponse
     {
-        auth()->user()->tokens->each(function($token, $key) {
-            $token->delete();
-        });
+        auth()->user()->tokens->each(fn($token) => $token->delete());
 
         return response()->json([
-            'Logged out successfully.'
+            'success' => true,
+            'message' => 'Logged out successfully.',
+            'data'    => null
         ]);
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function guest(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'You are not logged. Try to login in to the application.',
+            'data'    => null
+        ], 403);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class EmployeeFactory extends Factory
@@ -13,8 +14,14 @@ class EmployeeFactory extends Factory
      */
     public function definition()
     {
+        $user = User::factory()->create();
+
         return [
-            //
+            'name'       => $this->faker->name(),
+            'user_id'    => $user->id,
+            'phone'      => $this->faker->phoneNumber(),
+            'is_partner' => $this->faker->boolean(),
+            'active'     => true
         ];
     }
 }

@@ -18,8 +18,7 @@ class CreateClientsTable extends Migration
             $table->foreignId('user_id');
             $table->foreign('user_id')->references('id')->on('users');
             $table->string('name');
-            $table->string('email')->unique();
-            $table->string('phone', 16);
+            $table->string('phone', 32);
             $table->boolean('active')->default(true);
             $table->timestamps();
         });
